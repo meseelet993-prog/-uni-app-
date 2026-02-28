@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .log { background: #f5f5f5; padding: 10px; border: 1px solid #ddd; height: 300px; overflow-y: scroll; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h2>WebSocket Connection Test</h2>
+    
+    <div>
+        <label>User ID:</label>
+        <input type="number" id="userId" value="1">
+        <button onclick="testConnection()">Test Connection</button>
+    </div>
+
+    <div id="results"></div>
+
+    <h3>Log:</h3>
+    <div id="log" class="log"></div>
+
+    <script>
+        function log(msg) {
+            const div = document.getElementById('log');
+            div.innerHTML += `<div>${new Date().toLocaleTimeString()} - ${msg}</div>`;
+            div.scrollTop = div.scrollHeight;
+        }
+
+        function testConnection() {
+            const userId = document.getElementById('userId').value;
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
+            }
+
+            const paths = [
+                `/ws/chat/${userId}`,
+                `/api/ws/chat/${userId}`
+            ];
+
+            const host = window.location.host; // e.g. localhost:8092
+            // If running from file system, default to localhost:8092
+            const targetHost = host || 'localhost:8092';
+
+            paths.forEach(path => {
+                const url = `ws://${targetHost}${path}`;
+                log(`Testing connection to: ${url}`);
+                
+                try {
+                    const ws = new WebSocket(url);
+                    
+                    ws.onopen = () => {
+                        log(`✅ SUCCESS: Connected to ${url}`);
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'status success';
+                        resultDiv.textContent = `Successfully connected to ${path}`;
+                        document.getElementById('results').appendChild(resultDiv);
+                        
+                        // Send a test message
+                        ws.send(JSON.stringify({
+                            receiverId: userId, // Send to self
+                            content: 'Hello from test page',
+                            type: 'text'
+                        }));
+                    };
+
+                    ws.onmessage = (event) => {
+                        log(`📩 Received message from ${url}: ${event.data}`);
+                    };
+
+                    ws.onerror = (error) => {
+                        log(`❌ ERROR on ${url}: Connection failed or closed unexpectedly.`);
+                    };
+
+                    ws.onclose = (event) => {
+                        log(`Connection closed for ${url} (Code: ${event.code}, Reason: ${event.reason})`);
+                    };
+
+                } catch (e) {
+                    log(`❌ EXCEPTION for ${url}: ${e.message}`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
